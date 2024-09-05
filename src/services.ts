@@ -1,6 +1,8 @@
 import { db, usersTable, transactionsTable } from '../db/db-drizzle';
 import { eq, and } from 'drizzle-orm/expressions';
 import { sql } from 'drizzle-orm/sql';
+import { dbKysely } from '../db/db-kysely';
+import { Database } from '../db/db-structure';
 
 // Get all users
 export async function getUsers() {
@@ -24,6 +26,10 @@ export async function addUser(data: { username: string, email: string, password:
       email: data.email,
       password: data.password,
     }).returning();
+
+    if (!result || result.length === 0) {
+      throw new Error('User insertion failed');
+    }
 
     console.log('User added successfully:', result);
     return result[0];
@@ -59,15 +65,16 @@ export async function getTransactions(userId: number) {
   try {
     console.log('Type of userId:', typeof userId);
 
-    const transactions = await db
-      .select()
-      .from(transactionsTable)
-      .where(eq(transactionsTable.user_id, userId)) 
-      .orderBy(transactionsTable.date);
+    const transactions = await dbKysely
+      .selectFrom('transactions')
+      .select(['title', 'amount', 'type', 'date'])
+      .where('user_id', '=', userId)
+      .orderBy('date', 'desc')
+      .execute();
 
-    // Debug: Check the transactions retrieved
-    console.log('Transactions retrieved:', transactions);
-
+    if (!transactions || transactions.length === 0) {
+      throw new Error('No transactions found for the user');
+    }
     return transactions;
   } catch (error) {
     console.error('Error getting transactions:', error);

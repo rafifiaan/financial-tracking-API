@@ -1,26 +1,34 @@
 import { Type, Static } from '@sinclair/typebox';
 import { Context } from 'hono';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
-// Simple email regex for validation
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Inisialisasi AJV dan tambahkan formats
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);  // Pastikan addFormats digunakan setelah AJV diinisialisasi
+
+// Fungsi untuk mengkompilasi dan memvalidasi skema
+const validate = (schema: any) => ajv.compile(schema);
 
 // Define the validator function
 export const validateRequestBody = (schema: any) => {
+  const validateSchema = validate(schema);
+
   return async (c: Context, next: any) => {
     try {
       const body = await c.req.json();
 
-      // Manual validation for email format
-      if (schema.properties?.email && !emailRegex.test(body.email)) {
-        return c.json({ error: 'Invalid email format' }, 400);
-      }
+      // Validasi schema menggunakan AJV
+      const valid = validateSchema(body);
 
-      // Basic validation for required fields
-      const requiredFields = schema.required || [];
-      for (const field of requiredFields) {
-        if (body[field] === undefined) {
-          return c.json({ error: `${field} is required` }, 400);
-        }
+      if (!valid) {
+        // Menyusun pesan kesalahan dari hasil validasi
+        const errors = validateSchema.errors?.map(error => ({
+          message: error.message,
+          path: error.instancePath
+        }));
+
+        return c.json({ error: 'Invalid request body', details: errors }, 400);
       }
 
       await next();

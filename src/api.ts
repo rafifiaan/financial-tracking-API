@@ -11,6 +11,7 @@ app.get('/users', async (c) => {
   return c.json(users);
 });
 
+// Add a new user
 app.post('/users', validateRequestBody(UserSchema), async (c) => {
   const body = await c.req.json();
   console.log('Request body (users):', body); 
@@ -18,6 +19,7 @@ app.post('/users', validateRequestBody(UserSchema), async (c) => {
   return c.json(user, 201);
 });
 
+// Add a transaction
 app.post('/transactions', validateRequestBody(TransactionSchema), async (c) => {
   try {
     const body = await c.req.json();
@@ -35,23 +37,20 @@ app.post('/transactions', validateRequestBody(TransactionSchema), async (c) => {
 
 // Get all transactions for a user
 app.get('/transactions', async (c) => {
-  const userId = Number(c.req.query('user_id'));
-
-  console.log('Received userId:', userId); 
-
-  if (isNaN(userId)) {
-    return c.json({ error: 'Invalid userId' }, 400);
-  }
-
   try {
+    const userId = Number(c.req.query('user_id'));
+    
+    if (isNaN(userId)) {
+      return c.json({ error: 'Invalid user ID' }, 400);
+    }
+
     const transactions = await getTransactions(userId);
-    return c.json(transactions);
+    return c.json(transactions, 200);
   } catch (error) {
-    console.error('Error getting transactions:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('Error retrieving transactions:', error);
+    return c.json({ error: 'Failed to retrieve transactions' }, 500);
   }
 });
-
 
 // Get balance summary for a user
 app.get('/balance', async (c) => {
